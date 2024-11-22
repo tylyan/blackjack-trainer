@@ -3,7 +3,7 @@ import { Card } from './Card';
 
 type HandProps = {
   title: string;
-  score: number;
+  score: number | string;
   cards: CardType[];
 };
 

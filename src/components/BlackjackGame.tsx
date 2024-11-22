@@ -1,13 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { GameState, Card, GameMode, GameAction } from '../types/game';
-import { createDeck, calculateHandValue } from '../utils/deck';
+import { GameState, Card, GameMode, GameAction, TrainingConfig } from '../types/game';
+import { createDeck, calculateHandValue, shuffleDeck } from '../utils/deck';
 import { Hand } from './Hand';
 import { DeckCounter } from './DeckCounter';
 import { ChipIcon } from './ChipIcon';
 import { DeckSettings } from './DeckSettings';
 import { getOptimalPlay } from '../utils/strategy';
 import { ModeToggle } from './ModeToggle';
+import { TrainingConfigOptions } from './TrainingConfig';
 
 const STORAGE_KEY = 'blackjack_player_money';
 const STATS_KEY = 'blackjack_stats';
@@ -69,6 +70,11 @@ const BlackjackGame = ({ mode = 'training' }: BlackjackGameProps) => {
       canDouble: false,
       stats: initialStats,
       mode,
+      trainingConfig: {
+        includePairs: true,
+        includeSoftHands: true,
+        includeHardHands: true,
+      },
     };
   });
 
@@ -151,6 +157,72 @@ const BlackjackGame = ({ mode = 'training' }: BlackjackGameProps) => {
         deck: newDeck,
         cutPosition: newCutPosition,
         needsShuffle: false,
+      }));
+      return;
+    }
+
+    if (gameState.mode === 'training') {
+      let validHand = false;
+      let attempts = 0;
+      let currentDeck = [...gameState.deck];
+
+      while (!validHand && attempts < 100) {
+        // Draw potential hands
+        const playerHand = [currentDeck[0], currentDeck[1]];
+        const dealerHand = [currentDeck[2], currentDeck[3]];
+
+        const playerScore = calculateHandValue(playerHand);
+        const dealerScore = calculateHandValue(dealerHand);
+
+        // Check if this is a valid training hand
+        const isPair = playerHand[0].rank === playerHand[1].rank;
+        const hasAce = playerHand.some((card) => card.rank === 'A');
+        const isHardHand = !hasAce;
+
+        // Validate hand type and ensure no blackjacks
+        validHand =
+          playerScore < 21 && // No player blackjacks
+          dealerScore < 21 && // No dealer blackjacks
+          ((isPair && gameState.trainingConfig.includePairs) ||
+            (hasAce && !isPair && gameState.trainingConfig.includeSoftHands) ||
+            (isHardHand && !isPair && gameState.trainingConfig.includeHardHands));
+
+        if (!validHand) {
+          // Shuffle the first four cards back into the deck
+          currentDeck = shuffleDeck(currentDeck);
+        }
+        attempts++;
+      }
+
+      if (!validHand) {
+        // If we couldn't find a valid hand, reshuffle and try again
+        const newDeck = createDeck(gameState.deckCount);
+        setGameState((prev) => ({
+          ...prev,
+          deck: newDeck,
+          needsShuffle: false,
+        }));
+        return;
+      }
+
+      // Use the valid hand we found
+      const playerHand = [currentDeck[0], currentDeck[1]];
+      const dealerHand = [currentDeck[2], { ...currentDeck[3], hidden: true }];
+      const playerScore = calculateHandValue(playerHand);
+      const needsShuffle = currentDeck.length <= gameState.cutPosition;
+
+      setGameState((prev) => ({
+        ...prev,
+        deck: currentDeck.slice(4),
+        playerHands: [playerHand],
+        dealerHand,
+        gameStatus: 'playing',
+        playerScores: [playerScore],
+        dealerScore: calculateHandValue([dealerHand[0]]),
+        canSplit: playerHand[0].rank === playerHand[1].rank,
+        canDouble: true,
+        activeHandIndex: 0,
+        needsShuffle,
       }));
       return;
     }
@@ -512,6 +584,20 @@ const BlackjackGame = ({ mode = 'training' }: BlackjackGameProps) => {
     }));
   };
 
+  const handleTrainingConfigChange = (config: TrainingConfig) => {
+    if (gameState.gameStatus !== 'betting') return;
+
+    // Ensure at least one option is selected
+    if (!config.includePairs && !config.includeSoftHands && !config.includeHardHands) {
+      return;
+    }
+
+    setGameState((prev) => ({
+      ...prev,
+      trainingConfig: config,
+    }));
+  };
+
   return (
     <div className="h-screen bg-green-800 p-4">
       <div className="max-w-3xl mx-auto flex flex-col h-full relative">
@@ -527,6 +613,13 @@ const BlackjackGame = ({ mode = 'training' }: BlackjackGameProps) => {
               onModeChange={handleModeChange}
               disabled={gameState.gameStatus !== 'betting'}
             />
+            {gameState.mode === 'training' && (
+              <TrainingConfigOptions
+                config={gameState.trainingConfig}
+                onConfigChange={handleTrainingConfigChange}
+                disabled={gameState.gameStatus !== 'betting'}
+              />
+            )}
           </div>
           <DeckCounter
             cardsRemaining={gameState.deck.length}
@@ -589,7 +682,11 @@ const BlackjackGame = ({ mode = 'training' }: BlackjackGameProps) => {
         <div className="flex-grow flex flex-col justify-center mb-4">
           <div className="mb-4">
             <div className="mb-8">
-              <Hand title="Dealer's Hand" score={gameState.dealerScore} cards={gameState.dealerHand} />
+              <Hand
+                title="Dealer's Hand"
+                score={gameState.dealerHand[0]?.rank === 'A' ? 'A' : gameState.dealerScore}
+                cards={gameState.dealerHand}
+              />
             </div>
 
             <div>

@@ -21,6 +21,12 @@ export type GameStatus =
   | 'training_correct'
   | 'training_incorrect';
 
+export type TrainingConfig = {
+  includePairs: boolean;
+  includeSoftHands: boolean;
+  includeHardHands: boolean;
+};
+
 export type GameState = {
   deck: Card[];
   playerHands: Card[][];
@@ -46,6 +52,7 @@ export type GameState = {
   needsShuffle: boolean;
   deckCount: number;
   mode: GameMode;
+  trainingConfig: TrainingConfig;
 };
 
 export type GameAction = 'hit' | 'stand' | 'double' | 'split';
