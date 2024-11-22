@@ -150,7 +150,6 @@ type GameState = {
 ## License
 
 MIT License - feel free to use this code for any purpose.
-
 This README provides:
 1. Clear project overview
 2. Technical details for developers

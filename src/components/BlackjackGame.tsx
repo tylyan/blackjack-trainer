@@ -275,7 +275,7 @@ const BlackjackGame = () => {
 
   return (
     <div className="min-h-screen bg-green-800 p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto flex flex-col min-h-screen">
         <div className="mb-8 text-white text-center">
           <h1 className="text-4xl font-bold mb-4">Blackjack</h1>
           <div className="flex justify-center items-center gap-8 mb-4">
@@ -302,68 +302,85 @@ const BlackjackGame = () => {
           </div>
         </div>
 
-        <div className="mb-8">
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <h2 className="text-white text-2xl">Dealer's Hand</h2>
-              <span className="bg-white text-black px-3 py-1 rounded-full font-bold text-xl flex items-center gap-2">
-                {gameState.dealerScore}
-                {gameState.dealerHand.some((card) => card.hidden) && (
-                  <>
-                    <span className="text-gray-300">|</span>
-                    <span className="text-gray-400">{gameState.dealerScore + 10}</span>
-                  </>
-                )}
-              </span>
+        <div className="flex-grow flex flex-col justify-center mb-8">
+          <div className="mb-8">
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-2">
+                <h2 className="text-white text-2xl">Dealer's Hand</h2>
+                <span className="bg-white text-black px-3 py-1 rounded-full font-bold text-xl flex items-center gap-2">
+                  {gameState.dealerScore}
+                </span>
+              </div>
+              <div className="flex gap-4 justify-center">
+                {gameState.dealerHand.map((card, index) => (
+                  <div
+                    key={index}
+                    className={`bg-white rounded-lg p-4 w-24 h-36 flex flex-col justify-between relative
+                      ${
+                        card.hidden
+                          ? 'bg-gray-300'
+                          : card.suit === '♥' || card.suit === '♦'
+                          ? 'text-red-600'
+                          : 'text-black'
+                      }`}
+                  >
+                    {card.hidden ? (
+                      <div className="text-4xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">?</div>
+                    ) : (
+                      <>
+                        <div className="text-lg font-bold">
+                          {card.rank}
+                          <span className="text-sm">{card.suit}</span>
+                        </div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl">
+                          {card.suit}
+                        </div>
+                        <div className="text-lg font-bold self-end rotate-180">
+                          {card.rank}
+                          <span className="text-sm">{card.suit}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-4">
-              {gameState.dealerHand.map((card, index) => (
-                <div
-                  key={index}
-                  className={`bg-white rounded-lg p-4 w-24 h-36 flex items-center justify-center text-2xl
-                    ${
-                      card.hidden
-                        ? 'bg-gray-300'
-                        : card.suit === '♥' || card.suit === '♦'
-                        ? 'text-red-600'
-                        : 'text-black'
-                    }`}
-                >
-                  {card.hidden ? '?' : `${card.rank}${card.suit}`}
+
+            <div>
+              {gameState.playerHands.map((hand, handIndex) => (
+                <div key={handIndex} className={`mb-4 ${handIndex === gameState.activeHandIndex ? '' : ''}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h2 className="text-white text-2xl">
+                      {gameState.playerHands.length > 1 ? `Hand ${handIndex + 1}` : 'Your Hand'}
+                    </h2>
+                    <span className="bg-white text-black px-3 py-1 rounded-full font-bold text-xl">
+                      {gameState.playerScores[handIndex]}
+                    </span>
+                  </div>
+                  <div className="flex gap-4 justify-center">
+                    {hand.map((card, cardIndex) => (
+                      <div
+                        key={cardIndex}
+                        className={`bg-white rounded-lg p-4 w-24 h-36 flex flex-col justify-between relative
+                          ${card.suit === '♥' || card.suit === '♦' ? 'text-red-600' : 'text-black'}`}
+                      >
+                        <div className="text-lg font-bold">
+                          {card.rank}
+                          <span className="text-sm">{card.suit}</span>
+                        </div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl">
+                          {card.suit}
+                        </div>
+                        <div className="text-lg font-bold self-end rotate-180">
+                          {card.rank}
+                          <span className="text-sm">{card.suit}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="mb-8">
-            {gameState.playerHands.map((hand, handIndex) => (
-              <div
-                key={handIndex}
-                className={`mb-4 ${
-                  handIndex === gameState.activeHandIndex ? 'ring-2 ring-yellow-400 rounded-lg p-2' : ''
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <h2 className="text-white text-2xl">
-                    {gameState.playerHands.length > 1 ? `Hand ${handIndex + 1}` : 'Your Hand'}
-                  </h2>
-                  <span className="bg-white text-black px-3 py-1 rounded-full font-bold text-xl">
-                    {gameState.playerScores[handIndex]}
-                  </span>
-                </div>
-                <div className="flex gap-4">
-                  {hand.map((card, cardIndex) => (
-                    <div
-                      key={cardIndex}
-                      className={`bg-white rounded-lg p-4 w-24 h-36 flex items-center justify-center text-2xl
-                        ${card.suit === '♥' || card.suit === '♦' ? 'text-red-600' : 'text-black'}`}
-                    >
-                      {`${card.rank}${card.suit}`}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
