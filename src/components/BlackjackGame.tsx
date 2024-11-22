@@ -2,10 +2,16 @@
 import { useState, useEffect } from 'react';
 import { GameState, Card } from '../types/game';
 import { createDeck, calculateHandValue } from '../utils/deck';
+import { Hand } from './Hand';
+import { DeckCounter } from './DeckCounter';
+import { ChipIcon } from './ChipIcon';
+import { DeckSettings } from './DeckSettings';
 
 const STORAGE_KEY = 'blackjack_player_money';
 const STATS_KEY = 'blackjack_stats';
 const AUTO_DEAL_DELAY = 5000; // 5 seconds delay
+const MIN_CUT_POSITION = 0.3; // Cut card must be at least 30% from the end
+const MAX_CUT_POSITION = 0.7; // Cut card can't be more than 70% from the end
 
 type BetInputEvent = React.ChangeEvent<HTMLInputElement>;
 
@@ -15,9 +21,18 @@ const BlackjackGame = () => {
     const savedStats = localStorage.getItem(STATS_KEY);
     const initialMoney = savedMoney ? parseInt(savedMoney) : 1000;
     const initialStats = savedStats ? JSON.parse(savedStats) : { wins: 0, losses: 0, pushes: 0 };
+    const deckCount = 6; // Default to 6 decks
+    const initialDeck = createDeck(deckCount);
+    const totalCards = 52 * deckCount;
+    const cutPosition = Math.floor(
+      totalCards * (MIN_CUT_POSITION + Math.random() * (MAX_CUT_POSITION - MIN_CUT_POSITION))
+    );
 
     return {
-      deck: [],
+      deck: initialDeck,
+      deckCount,
+      cutPosition,
+      needsShuffle: false,
       playerHands: [[]],
       activeHandIndex: 0,
       dealerHand: [],
@@ -54,28 +69,86 @@ const BlackjackGame = () => {
     }
   }, [gameState.gameStatus]);
 
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === ' ') {
+        event.preventDefault();
+      }
+
+      if (gameState.gameStatus === 'playing') {
+        switch (event.key.toLowerCase()) {
+          case ' ': // Spacebar
+            handleHit();
+            break;
+          case 'escape':
+            handleStand();
+            break;
+          case 'd':
+            if (gameState.canDouble) {
+              handleDouble();
+            }
+            break;
+          case 's':
+            if (gameState.canSplit) {
+              handleSplit();
+            }
+            break;
+        }
+      } else if (
+        (gameState.gameStatus === 'playerBusted' ||
+          gameState.gameStatus === 'dealerBusted' ||
+          gameState.gameStatus === 'playerWon' ||
+          gameState.gameStatus === 'dealerWon' ||
+          gameState.gameStatus === 'push') &&
+        gameState.playerMoney >= gameState.currentBet &&
+        event.key === ' '
+      ) {
+        handleDealNow();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [gameState]);
+
   const handleStartGame = () => {
     if (gameState.currentBet <= 0 || gameState.currentBet > gameState.playerMoney) return;
 
-    const newDeck = createDeck();
-    const playerHand = [newDeck[0], newDeck[1]];
-    const dealerHand = [newDeck[2], { ...newDeck[3], hidden: true }];
+    if (gameState.needsShuffle || gameState.deck.length < 15) {
+      // 15 cards minimum for safety
+      const newDeck = createDeck();
+      const newCutPosition = Math.floor(
+        TOTAL_CARDS * (MIN_CUT_POSITION + Math.random() * (MAX_CUT_POSITION - MIN_CUT_POSITION))
+      );
 
-    const canSplit = playerHand[0].rank === playerHand[1].rank;
-    const canDouble = true;
+      setGameState((prev) => ({
+        ...prev,
+        deck: newDeck,
+        cutPosition: newCutPosition,
+        needsShuffle: false,
+      }));
+      return;
+    }
+
+    const currentDeck = [...gameState.deck];
+    const playerHand = [currentDeck.shift()!, currentDeck.shift()!];
+    const dealerHand = [currentDeck.shift()!, { ...currentDeck.shift()!, hidden: true }];
+
+    const needsShuffle = currentDeck.length <= gameState.cutPosition;
 
     setGameState((prev) => ({
       ...prev,
-      deck: newDeck.slice(4),
+      deck: currentDeck,
       playerHands: [playerHand],
       dealerHand,
       gameStatus: 'playing',
       playerScores: [calculateHandValue(playerHand)],
       dealerScore: calculateHandValue([dealerHand[0]]),
       playerMoney: prev.playerMoney - prev.currentBet,
-      canSplit,
-      canDouble,
+      canSplit: playerHand[0].rank === playerHand[1].rank,
+      canDouble: true,
       activeHandIndex: 0,
+      needsShuffle,
     }));
   };
 
@@ -273,13 +346,49 @@ const BlackjackGame = () => {
     handleStartGame();
   };
 
+  const handleDeckCountChange = (count: number) => {
+    if (gameState.gameStatus !== 'betting') return;
+
+    const newDeck = createDeck(count);
+    const totalCards = 52 * count;
+    const newCutPosition = Math.floor(
+      totalCards * (MIN_CUT_POSITION + Math.random() * (MAX_CUT_POSITION - MIN_CUT_POSITION))
+    );
+
+    setGameState((prev) => ({
+      ...prev,
+      deck: newDeck,
+      deckCount: count,
+      cutPosition: newCutPosition,
+      needsShuffle: false,
+    }));
+  };
+
   return (
-    <div className="min-h-screen bg-green-800 p-8">
-      <div className="max-w-4xl mx-auto flex flex-col min-h-screen">
-        <div className="mb-8 text-white text-center">
+    <div className="h-screen bg-green-800 p-4">
+      <div className="max-w-3xl mx-auto flex flex-col h-full relative">
+        <div className="flex justify-between items-start mb-4">
+          <DeckSettings
+            deckCount={gameState.deckCount}
+            onDeckCountChange={handleDeckCountChange}
+            disabled={gameState.gameStatus !== 'betting'}
+          />
+          <DeckCounter
+            cardsRemaining={gameState.deck.length}
+            totalCards={52 * gameState.deckCount}
+            cutPosition={gameState.cutPosition}
+            needsShuffle={gameState.needsShuffle}
+          />
+        </div>
+
+        <div className="mb-4 text-white text-center">
           <h1 className="text-4xl font-bold mb-4">Blackjack</h1>
           <div className="flex justify-center items-center gap-8 mb-4">
             <p className="text-xl">Money: ${gameState.playerMoney}</p>
+            <div className="flex items-center gap-2">
+              <ChipIcon />
+              <p className="text-xl">Current Bet: ${gameState.currentBet}</p>
+            </div>
             <div className="flex gap-4 text-lg">
               <span className="text-green-300">Wins: {gameState.stats.wins}</span>
               <span className="text-red-300">Losses: {gameState.stats.losses}</span>
@@ -302,89 +411,26 @@ const BlackjackGame = () => {
           </div>
         </div>
 
-        <div className="flex-grow flex flex-col justify-center mb-8">
-          <div className="mb-8">
+        <div className="flex-grow flex flex-col justify-center mb-4">
+          <div className="mb-4">
             <div className="mb-8">
-              <div className="flex items-center gap-2 mb-2">
-                <h2 className="text-white text-2xl">Dealer's Hand</h2>
-                <span className="bg-white text-black px-3 py-1 rounded-full font-bold text-xl flex items-center gap-2">
-                  {gameState.dealerScore}
-                </span>
-              </div>
-              <div className="flex gap-4 justify-center">
-                {gameState.dealerHand.map((card, index) => (
-                  <div
-                    key={index}
-                    className={`bg-white rounded-lg p-4 w-24 h-36 flex flex-col justify-between relative
-                      ${
-                        card.hidden
-                          ? 'bg-gray-300'
-                          : card.suit === '♥' || card.suit === '♦'
-                          ? 'text-red-600'
-                          : 'text-black'
-                      }`}
-                  >
-                    {card.hidden ? (
-                      <div className="text-4xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">?</div>
-                    ) : (
-                      <>
-                        <div className="text-lg font-bold">
-                          {card.rank}
-                          <span className="text-sm">{card.suit}</span>
-                        </div>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl">
-                          {card.suit}
-                        </div>
-                        <div className="text-lg font-bold self-end rotate-180">
-                          {card.rank}
-                          <span className="text-sm">{card.suit}</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <Hand title="Dealer's Hand" score={gameState.dealerScore} cards={gameState.dealerHand} />
             </div>
 
             <div>
               {gameState.playerHands.map((hand, handIndex) => (
-                <div key={handIndex} className={`mb-4 ${handIndex === gameState.activeHandIndex ? '' : ''}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h2 className="text-white text-2xl">
-                      {gameState.playerHands.length > 1 ? `Hand ${handIndex + 1}` : 'Your Hand'}
-                    </h2>
-                    <span className="bg-white text-black px-3 py-1 rounded-full font-bold text-xl">
-                      {gameState.playerScores[handIndex]}
-                    </span>
-                  </div>
-                  <div className="flex gap-4 justify-center">
-                    {hand.map((card, cardIndex) => (
-                      <div
-                        key={cardIndex}
-                        className={`bg-white rounded-lg p-4 w-24 h-36 flex flex-col justify-between relative
-                          ${card.suit === '♥' || card.suit === '♦' ? 'text-red-600' : 'text-black'}`}
-                      >
-                        <div className="text-lg font-bold">
-                          {card.rank}
-                          <span className="text-sm">{card.suit}</span>
-                        </div>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl">
-                          {card.suit}
-                        </div>
-                        <div className="text-lg font-bold self-end rotate-180">
-                          {card.rank}
-                          <span className="text-sm">{card.suit}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <Hand
+                  key={handIndex}
+                  title={gameState.playerHands.length > 1 ? `Hand ${handIndex + 1}` : 'Your Hand'}
+                  score={gameState.playerScores[handIndex]}
+                  cards={hand}
+                />
               ))}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center gap-4 mb-2">
           {gameState.gameStatus === 'betting' ? (
             <>
               <button
@@ -394,6 +440,7 @@ const BlackjackGame = () => {
                 -10
               </button>
               <div className="flex items-center gap-2">
+                <ChipIcon />
                 <span className="text-white">Bet: $</span>
                 <input
                   type="number"
@@ -421,10 +468,10 @@ const BlackjackGame = () => {
           ) : gameState.gameStatus === 'playing' ? (
             <>
               <button onClick={handleHit} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                Hit
+                Hit (Space)
               </button>
               <button onClick={handleStand} className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
-                Stand
+                Stand (Esc)
               </button>
               {gameState.canDouble && (
                 <button
@@ -432,7 +479,7 @@ const BlackjackGame = () => {
                   className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
                   disabled={gameState.currentBet > gameState.playerMoney}
                 >
-                  Double
+                  Double (D)
                 </button>
               )}
               {gameState.canSplit && (
@@ -441,7 +488,7 @@ const BlackjackGame = () => {
                   className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                   disabled={gameState.currentBet > gameState.playerMoney}
                 >
-                  Split
+                  Split (S)
                 </button>
               )}
             </>
@@ -455,7 +502,7 @@ const BlackjackGame = () => {
         </div>
 
         {gameState.gameStatus !== 'betting' && gameState.gameStatus !== 'playing' && (
-          <div className="mt-4 text-center">
+          <div className="mt-2 text-center">
             <div className="text-white text-2xl mb-2">
               {gameState.gameStatus === 'playerBusted' && 'Bust! You lose!'}
               {gameState.gameStatus === 'dealerBusted' && 'Dealer busts! You win!'}
@@ -470,7 +517,7 @@ const BlackjackGame = () => {
             </div>
             {gameState.playerMoney >= gameState.currentBet && (
               <button onClick={handleDealNow} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                Deal Now
+                Deal Now (Space)
               </button>
             )}
           </div>

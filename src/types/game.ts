@@ -25,4 +25,7 @@ export type GameState = {
     losses: number;
     pushes: number;
   };
+  cutPosition: number;
+  needsShuffle: boolean;
+  deckCount: number;
 };

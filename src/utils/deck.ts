@@ -3,13 +3,15 @@ import { Card, Rank, Suit } from '../types/game';
 const SUITS: Suit[] = ['♠', '♣', '♥', '♦'];
 const RANKS: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
-export const createDeck = (): Card[] => {
+export const createDeck = (deckCount: number = 1): Card[] => {
   const deck: Card[] = [];
 
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      const value = calculateCardValue(rank);
-      deck.push({ suit, rank, value });
+  for (let d = 0; d < deckCount; d++) {
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        const value = calculateCardValue(rank);
+        deck.push({ suit, rank, value });
+      }
     }
   }
 
