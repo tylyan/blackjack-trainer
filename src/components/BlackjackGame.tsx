@@ -1,11 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { GameState, Card } from '../types/game';
+import { GameState, Card, GameMode, GameAction } from '../types/game';
 import { createDeck, calculateHandValue } from '../utils/deck';
 import { Hand } from './Hand';
 import { DeckCounter } from './DeckCounter';
 import { ChipIcon } from './ChipIcon';
 import { DeckSettings } from './DeckSettings';
+import { getOptimalPlay } from '../utils/strategy';
+import { ModeToggle } from './ModeToggle';
 
 const STORAGE_KEY = 'blackjack_player_money';
 const STATS_KEY = 'blackjack_stats';
@@ -15,13 +17,35 @@ const MAX_CUT_POSITION = 0.7; // Cut card can't be more than 70% from the end
 
 type BetInputEvent = React.ChangeEvent<HTMLInputElement>;
 
-const BlackjackGame = () => {
+type BlackjackGameProps = {
+  mode?: GameMode;
+};
+
+const BlackjackGame = ({ mode = 'training' }: BlackjackGameProps) => {
   const [gameState, setGameState] = useState<GameState>(() => {
     const savedMoney = localStorage.getItem(STORAGE_KEY);
     const savedStats = localStorage.getItem(STATS_KEY);
     const initialMoney = savedMoney ? parseInt(savedMoney) : 1000;
-    const initialStats = savedStats ? JSON.parse(savedStats) : { wins: 0, losses: 0, pushes: 0 };
-    const deckCount = 6; // Default to 6 decks
+    const initialStats = savedStats
+      ? JSON.parse(savedStats)
+      : {
+          wins: 0,
+          losses: 0,
+          pushes: 0,
+          training: {
+            correct: 0,
+            incorrect: 0,
+          },
+        };
+
+    if (!initialStats.training) {
+      initialStats.training = {
+        correct: 0,
+        incorrect: 0,
+      };
+    }
+
+    const deckCount = 6;
     const initialDeck = createDeck(deckCount);
     const totalCards = 52 * deckCount;
     const cutPosition = Math.floor(
@@ -44,6 +68,7 @@ const BlackjackGame = () => {
       canSplit: false,
       canDouble: false,
       stats: initialStats,
+      mode,
     };
   });
 
@@ -115,10 +140,10 @@ const BlackjackGame = () => {
     if (gameState.currentBet <= 0 || gameState.currentBet > gameState.playerMoney) return;
 
     if (gameState.needsShuffle || gameState.deck.length < 15) {
-      // 15 cards minimum for safety
-      const newDeck = createDeck();
+      const newDeck = createDeck(gameState.deckCount);
+      const totalCards = 52 * gameState.deckCount;
       const newCutPosition = Math.floor(
-        TOTAL_CARDS * (MIN_CUT_POSITION + Math.random() * (MAX_CUT_POSITION - MIN_CUT_POSITION))
+        totalCards * (MIN_CUT_POSITION + Math.random() * (MAX_CUT_POSITION - MIN_CUT_POSITION))
       );
 
       setGameState((prev) => ({
@@ -133,16 +158,58 @@ const BlackjackGame = () => {
     const currentDeck = [...gameState.deck];
     const playerHand = [currentDeck.shift()!, currentDeck.shift()!];
     const dealerHand = [currentDeck.shift()!, { ...currentDeck.shift()!, hidden: true }];
-
+    const playerScore = calculateHandValue(playerHand);
     const needsShuffle = currentDeck.length <= gameState.cutPosition;
 
+    // Check for player blackjack
+    if (playerScore === 21) {
+      // Reveal dealer's card immediately
+      const fullDealerHand = dealerHand.map((card) => ({ ...card, hidden: false }));
+      const dealerScore = calculateHandValue(fullDealerHand);
+
+      // Determine if dealer also has blackjack
+      const gameStatus = dealerScore === 21 ? 'push' : 'playerWon';
+
+      // Calculate winnings (3:2 for blackjack)
+      const winnings =
+        dealerScore === 21
+          ? gameState.currentBet // Push: return original bet
+          : gameState.currentBet + Math.floor(gameState.currentBet * 1.5); // Blackjack pays 3:2
+
+      // Update stats
+      const newStats = { ...gameState.stats };
+      if (gameStatus === 'playerWon') {
+        newStats.wins++;
+      } else {
+        newStats.pushes++;
+      }
+
+      setGameState((prev) => ({
+        ...prev,
+        deck: currentDeck,
+        playerHands: [playerHand],
+        dealerHand: fullDealerHand,
+        gameStatus,
+        playerScores: [playerScore],
+        dealerScore,
+        playerMoney: prev.playerMoney - prev.currentBet + winnings,
+        canSplit: false,
+        canDouble: false,
+        activeHandIndex: 0,
+        needsShuffle,
+        stats: newStats,
+      }));
+      return;
+    }
+
+    // Continue with normal game if no blackjack
     setGameState((prev) => ({
       ...prev,
       deck: currentDeck,
       playerHands: [playerHand],
       dealerHand,
       gameStatus: 'playing',
-      playerScores: [calculateHandValue(playerHand)],
+      playerScores: [playerScore],
       dealerScore: calculateHandValue([dealerHand[0]]),
       playerMoney: prev.playerMoney - prev.currentBet,
       canSplit: playerHand[0].rank === playerHand[1].rank,
@@ -153,6 +220,10 @@ const BlackjackGame = () => {
   };
 
   const handleDouble = () => {
+    if (gameState.mode === 'training') {
+      handleTrainingAction('double');
+      return;
+    }
     if (gameState.gameStatus !== 'playing' || !gameState.canDouble || gameState.currentBet > gameState.playerMoney)
       return;
 
@@ -181,6 +252,10 @@ const BlackjackGame = () => {
   };
 
   const handleSplit = () => {
+    if (gameState.mode === 'training') {
+      handleTrainingAction('split');
+      return;
+    }
     if (gameState.gameStatus !== 'playing' || !gameState.canSplit || gameState.currentBet > gameState.playerMoney)
       return;
 
@@ -199,6 +274,10 @@ const BlackjackGame = () => {
   };
 
   const handleHit = () => {
+    if (gameState.mode === 'training') {
+      handleTrainingAction('hit');
+      return;
+    }
     if (gameState.gameStatus !== 'playing') return;
 
     const newCard = gameState.deck[0];
@@ -223,6 +302,10 @@ const BlackjackGame = () => {
   };
 
   const handleStand = () => {
+    if (gameState.mode === 'training') {
+      handleTrainingAction('stand');
+      return;
+    }
     if (gameState.gameStatus !== 'playing') return;
 
     const nextHandIndex = gameState.activeHandIndex + 1;
@@ -324,7 +407,7 @@ const BlackjackGame = () => {
   const handleResetStats = () => {
     setGameState((prev) => ({
       ...prev,
-      stats: { wins: 0, losses: 0, pushes: 0 },
+      stats: { wins: 0, losses: 0, pushes: 0, training: { correct: 0, incorrect: 0 } },
     }));
   };
 
@@ -364,15 +447,87 @@ const BlackjackGame = () => {
     }));
   };
 
+  const handleTrainingAction = (action: GameAction) => {
+    const optimalPlay = getOptimalPlay(gameState.playerHands[gameState.activeHandIndex], gameState.dealerHand[0]);
+
+    const isCorrect = action === optimalPlay;
+    const newStats = {
+      ...gameState.stats,
+      training: {
+        correct: gameState.stats.training.correct + (isCorrect ? 1 : 0),
+        incorrect: gameState.stats.training.incorrect + (isCorrect ? 0 : 1),
+      },
+    };
+
+    setGameState((prev) => ({
+      ...prev,
+      gameStatus: isCorrect ? 'training_correct' : 'training_incorrect',
+      stats: newStats,
+    }));
+
+    // Auto-deal next hand after showing result
+    setTimeout(handleStartGame, 2000);
+  };
+
+  const getTrainingFeedback = () => {
+    if (gameState.gameStatus === 'training_correct') {
+      return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+          <div className="bg-green-600 text-white p-8 rounded-lg shadow-lg text-center">
+            <div className="text-4xl font-bold mb-4">Correct Play!</div>
+            <div className="text-xl">
+              {getOptimalPlay(gameState.playerHands[gameState.activeHandIndex], gameState.dealerHand[0])} was the right
+              move
+            </div>
+            <div className="text-lg mt-4 text-green-200">Next hand in 2 seconds...</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (gameState.gameStatus === 'training_incorrect') {
+      return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+          <div className="bg-red-600 text-white p-8 rounded-lg shadow-lg text-center">
+            <div className="text-4xl font-bold mb-4">Incorrect Play</div>
+            <div className="text-xl">
+              You should have chosen:{' '}
+              {getOptimalPlay(gameState.playerHands[gameState.activeHandIndex], gameState.dealerHand[0])}
+            </div>
+            <div className="text-lg mt-4 text-red-200">Next hand in 2 seconds...</div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const handleModeChange = (newMode: GameMode) => {
+    if (gameState.gameStatus !== 'betting') return;
+
+    setGameState((prev) => ({
+      ...prev,
+      mode: newMode,
+    }));
+  };
+
   return (
     <div className="h-screen bg-green-800 p-4">
       <div className="max-w-3xl mx-auto flex flex-col h-full relative">
         <div className="flex justify-between items-start mb-4">
-          <DeckSettings
-            deckCount={gameState.deckCount}
-            onDeckCountChange={handleDeckCountChange}
-            disabled={gameState.gameStatus !== 'betting'}
-          />
+          <div className="flex gap-4">
+            <DeckSettings
+              deckCount={gameState.deckCount}
+              onDeckCountChange={handleDeckCountChange}
+              disabled={gameState.gameStatus !== 'betting'}
+            />
+            <ModeToggle
+              mode={gameState.mode}
+              onModeChange={handleModeChange}
+              disabled={gameState.gameStatus !== 'betting'}
+            />
+          </div>
           <DeckCounter
             cardsRemaining={gameState.deck.length}
             totalCards={52 * gameState.deckCount}
@@ -384,24 +539,44 @@ const BlackjackGame = () => {
         <div className="mb-4 text-white text-center">
           <h1 className="text-4xl font-bold mb-4">Blackjack</h1>
           <div className="flex justify-center items-center gap-8 mb-4">
-            <p className="text-xl">Money: ${gameState.playerMoney}</p>
-            <div className="flex items-center gap-2">
-              <ChipIcon />
-              <p className="text-xl">Current Bet: ${gameState.currentBet}</p>
-            </div>
-            <div className="flex gap-4 text-lg">
-              <span className="text-green-300">Wins: {gameState.stats.wins}</span>
-              <span className="text-red-300">Losses: {gameState.stats.losses}</span>
-              <span className="text-gray-300">Pushes: {gameState.stats.pushes}</span>
-            </div>
+            {gameState.mode === 'standard' ? (
+              <>
+                <p className="text-xl">Money: ${gameState.playerMoney}</p>
+                <div className="flex items-center gap-2">
+                  <ChipIcon />
+                  <p className="text-xl">Current Bet: ${gameState.currentBet}</p>
+                </div>
+                <div className="flex gap-4 text-lg">
+                  <span className="text-green-300">Wins: {gameState.stats.wins}</span>
+                  <span className="text-red-300">Losses: {gameState.stats.losses}</span>
+                  <span className="text-gray-300">Pushes: {gameState.stats.pushes}</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex gap-8 text-lg">
+                <span className="text-green-300">Correct Plays: {gameState.stats.training.correct}</span>
+                <span className="text-red-300">Incorrect Plays: {gameState.stats.training.incorrect}</span>
+                <span className="text-gray-300">
+                  Accuracy:{' '}
+                  {Math.round(
+                    (gameState.stats.training.correct /
+                      Math.max(1, gameState.stats.training.correct + gameState.stats.training.incorrect)) *
+                      100
+                  )}
+                  %
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex justify-center gap-2">
-            <button
-              onClick={handleResetMoney}
-              className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
-            >
-              Reset Money
-            </button>
+            {gameState.mode === 'standard' && (
+              <button
+                onClick={handleResetMoney}
+                className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
+              >
+                Reset Money
+              </button>
+            )}
             <button
               onClick={handleResetStats}
               className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
@@ -522,6 +697,8 @@ const BlackjackGame = () => {
             )}
           </div>
         )}
+
+        {gameState.mode === 'training' && getTrainingFeedback()}
       </div>
     </div>
   );

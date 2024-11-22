@@ -8,12 +8,25 @@ export type Card = {
   hidden?: boolean;
 };
 
+export type GameMode = 'standard' | 'training';
+
+export type GameStatus =
+  | 'betting'
+  | 'playing'
+  | 'playerBusted'
+  | 'dealerBusted'
+  | 'playerWon'
+  | 'dealerWon'
+  | 'push'
+  | 'training_correct'
+  | 'training_incorrect';
+
 export type GameState = {
   deck: Card[];
   playerHands: Card[][];
   activeHandIndex: number;
   dealerHand: Card[];
-  gameStatus: 'betting' | 'playing' | 'playerBusted' | 'dealerBusted' | 'playerWon' | 'dealerWon' | 'push';
+  gameStatus: GameStatus;
   playerScores: number[];
   dealerScore: number;
   currentBet: number;
@@ -24,8 +37,15 @@ export type GameState = {
     wins: number;
     losses: number;
     pushes: number;
+    training: {
+      correct: number;
+      incorrect: number;
+    };
   };
   cutPosition: number;
   needsShuffle: boolean;
   deckCount: number;
+  mode: GameMode;
 };
+
+export type GameAction = 'hit' | 'stand' | 'double' | 'split';
