@@ -3,8 +3,6 @@ import { GameState, Card, GameMode, GameAction, TrainingConfig } from '../types/
 import { createDeck, calculateHandValue, shuffleDeck } from '../utils/deck';
 import { getOptimalPlay } from '../utils/strategy';
 
-type BetInputEvent = React.ChangeEvent<HTMLInputElement>;
-
 const STORAGE_KEY = 'blackjack_player_money';
 const STATS_KEY = 'blackjack_stats';
 const AUTO_DEAL_DELAY = 5000; // 5 seconds delay
