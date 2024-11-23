@@ -56,3 +56,23 @@ export type GameState = {
 };
 
 export type GameAction = 'hit' | 'stand' | 'double' | 'split';
+
+export type BetInputEvent = React.ChangeEvent<HTMLInputElement>;
+
+export type GameHandlers = {
+  handleStartGame: () => void;
+  handleDouble: () => void;
+  handleSplit: () => void;
+  handleHit: () => void;
+  handleStand: () => void;
+  handleBetChange: (bet: number) => void;
+  handleNewGame: () => void;
+  handleResetMoney: () => void;
+  handleResetStats: () => void;
+  handleBetInput: (event: BetInputEvent) => void;
+  handleDealNow: () => void;
+  handleDeckCountChange: (count: number) => void;
+  handleTrainingAction: (action: GameAction) => void;
+  handleModeChange: (newMode: GameMode) => void;
+  handleTrainingConfigChange: (config: TrainingConfig) => void;
+};
