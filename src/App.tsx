@@ -1,4 +1,4 @@
-import BlackjackGame from './components/BlackjackGame';
+import BlackjackGame from './features/blackjack-game/components/BlackjackGame';
 
 const App = () => {
   return <BlackjackGame />;
