@@ -7,7 +7,7 @@ import { Theme } from '@radix-ui/themes';
 const preview: Preview = {
   decorators: [
     (Story) => (
-      <Theme accentColor="amber" grayColor="sand" radius="full">
+      <Theme style={{ minHeight: 'auto' }} accentColor="amber" grayColor="sand" radius="full">
         {Story()}
       </Theme>
     ),
