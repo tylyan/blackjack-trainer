@@ -1,4 +1,4 @@
-import { Text } from '../../src/components/Text';
+import { Text, TextVariant } from '../../src/components/Text';
 import { Blockquote, Box, Flex, Select, Separator, Slider } from '@radix-ui/themes';
 import { useState } from 'react';
 
@@ -68,6 +68,33 @@ export const Typography = () => {
             </Text>
           </div>
         ))}
+      </Blockquote>
+    </Flex>
+  );
+};
+
+export const TypographyVariants = () => {
+  const [variant, setVariant] = useState<TextVariant>('body');
+
+  return (
+    <Flex direction="column" gap="4">
+      <Select.Root defaultValue="body" onValueChange={(value) => setVariant(value as TextVariant)}>
+        <Select.Trigger />
+        <Select.Content>
+          <Select.Group>
+            <Select.Item value="title">Title</Select.Item>
+            <Select.Item value="subtitle">Subtitle</Select.Item>
+            <Select.Item value="h1">H1</Select.Item>
+            <Select.Item value="h2">H2</Select.Item>
+            <Select.Item value="h3">H3</Select.Item>
+            <Select.Item value="body">Body</Select.Item>
+          </Select.Group>
+        </Select.Content>
+      </Select.Root>
+      <Blockquote>
+        <div>
+          <Text variant={variant}>{SAMPLE_TEXT}</Text>
+        </div>
       </Blockquote>
     </Flex>
   );
