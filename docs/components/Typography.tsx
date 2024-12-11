@@ -38,32 +38,53 @@ export const Typography = () => {
 
   return (
     <Flex direction="column" gap="4">
-      <Select.Root defaultValue="regular" onValueChange={(value) => setWeight(value as Weight)}>
-        <Select.Trigger />
-        <Select.Content>
-          <Select.Group>
-            <Select.Item value="light">Light</Select.Item>
-            <Select.Item value="regular">Regular</Select.Item>
-            <Select.Item value="medium">Medium</Select.Item>
-            <Select.Item value="bold">Bold</Select.Item>
-          </Select.Group>
-        </Select.Content>
-      </Select.Root>
+      <Flex justify="between" align="center" gap="4">
+        <Flex justify="start" align="center" gap="2">
+          <Text variant="h3" wrap="nowrap">
+            Size:
+          </Text>
+          <Text variant="h3" weight="light" wrap="nowrap">
+            {size}
+          </Text>
+        </Flex>
+        <Slider
+          defaultValue={[3]}
+          onValueChange={([value]) => setSize(String(value) as Size)}
+          min={1}
+          max={9}
+          step={1}
+        />
+      </Flex>
       <Blockquote>
-        {['1', '2', '3', '4', '5', '6', '7', '8'].reverse().map((size) => (
-          <div key={`size-${size}`}>
-            <Text weight={weight} size={size as any}>
+        {['light', 'regular', 'medium', 'bold'].reverse().map((weight) => (
+          <div key={`weight-${weight}`}>
+            <Text weight={weight as any} size={size}>
               {SAMPLE_TEXT}
             </Text>
           </div>
         ))}
       </Blockquote>
+
       <Separator style={{ width: '100%' }} />
-      <Slider defaultValue={[3]} onValueChange={([value]) => setSize(String(value) as Size)} min={1} max={9} step={1} />
+
+      <Flex justify="start" align="center" gap="2">
+        <Text variant="h3">Weight:</Text>
+        <Select.Root defaultValue="regular" onValueChange={(value) => setWeight(value as Weight)}>
+          <Select.Trigger />
+          <Select.Content>
+            <Select.Group>
+              <Select.Item value="light">Light</Select.Item>
+              <Select.Item value="regular">Regular</Select.Item>
+              <Select.Item value="medium">Medium</Select.Item>
+              <Select.Item value="bold">Bold</Select.Item>
+            </Select.Group>
+          </Select.Content>
+        </Select.Root>
+      </Flex>
       <Blockquote>
-        {['light', 'regular', 'medium', 'bold'].reverse().map((weight) => (
-          <div key={`weight-${weight}`}>
-            <Text weight={weight as any} size={size}>
+        {['1', '2', '3', '4', '5', '6', '7', '8'].reverse().map((size) => (
+          <div key={`size-${size}`}>
+            <Text weight={weight} size={size as any}>
               {SAMPLE_TEXT}
             </Text>
           </div>
