@@ -1,16 +1,20 @@
-import { LoginForm } from '@/features/users/components/LoginForm';
-import { Flex, Text, Button, Box, Container } from '@radix-ui/themes';
+import { Button } from '@/components/Button';
+import { Text } from '@/components/Text';
+import { Flex, Box } from '@radix-ui/themes';
+import Link from 'next/link';
 
 export default function Home() {
   return (
     <Box style={{ background: 'var(--gray-a2)', borderRadius: 'var(--radius-3)', minHeight: '100vh' }}>
-      <Container size="1">
-        <Flex direction="column" gap="2">
-          <Text>Hello from Radix Themes :)</Text>
-          <Button>Let's go</Button>
-        </Flex>
-        <LoginForm />
-      </Container>
+      <Flex direction="column" justify="center" align="center" gap="5" style={{ height: '100vh' }}>
+        <Text variant="title">Welcome to Black & Jack</Text>
+        <Text variant="h1">A simple & intuitive training app</Text>
+        <Link href="/login">
+          <Button variant="cta" size="4">
+            Get started
+          </Button>
+        </Link>
+      </Flex>
     </Box>
   );
 }
