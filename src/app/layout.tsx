@@ -30,10 +30,10 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <Container style={{ background: 'var(--gray-a2)' }}>
-            <Flex direction="column" justify="center" align="center">
+            <Flex direction="column" justify="center" align="center" gap="9">
               <Text variant="h1">Black & Jack</Text>
               <Box flexGrow="1">{children}</Box>
-              <Text variant="h2">Footer</Text>
+              <Text variant="body">© 2024 Black & Jack</Text>
             </Flex>
           </Container>
         </ThemeProvider>
