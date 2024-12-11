@@ -1,17 +1,11 @@
 import React from 'react';
 import '@/app/globals.css';
 import type { Preview } from '@storybook/react';
-import { Theme } from '@radix-ui/themes';
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 /** @type { import('@storybook/react').Preview } */
 const preview: Preview = {
-  decorators: [
-    (Story) => (
-      <Theme style={{ minHeight: 'auto' }} accentColor="amber" grayColor="sand" radius="full">
-        {Story()}
-      </Theme>
-    ),
-  ],
+  decorators: [(Story) => <ThemeProvider minHeight="auto">{Story()}</ThemeProvider>],
   parameters: {
     controls: {
       matchers: {

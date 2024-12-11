@@ -1,10 +1,5 @@
-import '../src/app/globals.css';
-import { Theme } from '@radix-ui/themes';
+import { ThemeProvider } from '../src/components/ThemeProvider';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <Theme style={{ minHeight: 'auto' }} accentColor="amber" grayColor="sand" radius="full">
-      {children}
-    </Theme>
-  );
+  return <ThemeProvider minHeight="auto">{children}</ThemeProvider>;
 }
