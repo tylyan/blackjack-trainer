@@ -41,5 +41,6 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: {
     children: 'The quick brown fox jumps over the lazy dog',
+    variant: 'body',
   },
 };
