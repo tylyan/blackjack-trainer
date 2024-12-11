@@ -33,14 +33,39 @@ const TextPlayground = () => {
 };
 
 export const Typography = () => {
+  const [size, setSize] = useState<Size>('3');
+  const [weight, setWeight] = useState<Weight>('regular');
+
   return (
     <Flex direction="column" gap="4">
-      <TextPlayground />
-      <Separator style={{ width: '100%' }} />
+      <Select.Root defaultValue="regular" onValueChange={(value) => setWeight(value as Weight)}>
+        <Select.Trigger />
+        <Select.Content>
+          <Select.Group>
+            <Select.Item value="light">Light</Select.Item>
+            <Select.Item value="regular">Regular</Select.Item>
+            <Select.Item value="medium">Medium</Select.Item>
+            <Select.Item value="bold">Bold</Select.Item>
+          </Select.Group>
+        </Select.Content>
+      </Select.Root>
       <Blockquote>
         {['1', '2', '3', '4', '5', '6', '7', '8'].reverse().map((size) => (
           <div key={`size-${size}`}>
-            <Text size={size as any}>{SAMPLE_TEXT}</Text>
+            <Text weight={weight} size={size as any}>
+              {SAMPLE_TEXT}
+            </Text>
+          </div>
+        ))}
+      </Blockquote>
+      <Separator style={{ width: '100%' }} />
+      <Slider defaultValue={[3]} onValueChange={([value]) => setSize(String(value) as Size)} min={1} max={9} step={1} />
+      <Blockquote>
+        {['light', 'regular', 'medium', 'bold'].reverse().map((weight) => (
+          <div key={`weight-${weight}`}>
+            <Text weight={weight as any} size={size}>
+              {SAMPLE_TEXT}
+            </Text>
           </div>
         ))}
       </Blockquote>
