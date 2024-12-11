@@ -2,7 +2,7 @@ import { Text as RadixText, TextProps as RadixTextProps } from '@radix-ui/themes
 
 // type TextProps = RadixTextProps;
 
-export type TextVariant = 'title' | 'subtitle' | 'h1' | 'h2' | 'h3' | 'body';
+export type TextVariant = 'title' | 'subtitle' | 'h1' | 'h2' | 'h3' | 'label' | 'body';
 
 function getTextStyles(variant: TextVariant) {
   switch (variant) {
@@ -16,6 +16,8 @@ function getTextStyles(variant: TextVariant) {
       return { size: '6' as const, weight: 'regular' as const };
     case 'h3':
       return { size: '5' as const, weight: 'regular' as const };
+    case 'label':
+      return { size: '1' as const, weight: 'medium' as const };
     case 'body':
     default:
       return { size: '3' as const, weight: 'regular' as const };
